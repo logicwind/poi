@@ -1,0 +1,44 @@
+{
+  "name": "poi",
+  "version": "0.1.0",
+  "description": "Pi on Incus — run the Pi coding agent inside an ephemeral, sandboxed container. Your host stays untouched.",
+  "type": "module",
+  "module": "src/cli.ts",
+  "bin": {
+    "poi": "./src/cli.ts"
+  },
+  "scripts": {
+    "start": "bun src/cli.ts",
+    "build": "bun src/cli.ts build",
+    "status": "bun src/cli.ts status",
+    "shell": "bun src/cli.ts shell",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "pi",
+    "pi-coding-agent",
+    "incus",
+    "coi",
+    "sandbox",
+    "coding-agent",
+    "llm",
+    "ephemeral-container",
+    "ollama"
+  ],
+  "license": "MIT",
+  "author": "Nachiket Patel",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/logicwind/poi"
+  },
+  "engines": {
+    "bun": ">=1.3.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  }
+}

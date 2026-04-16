@@ -19,6 +19,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { build } from "./build.ts";
 import { createSandbox } from "./sandbox.ts";
+import { ensureIncusSocket } from "./socket.ts";
 import { status } from "./status.ts";
 
 const USAGE = `poi — Pi on Incus
@@ -33,7 +34,8 @@ env:
   POI_TEMPLATE       template container name (default: poi-base)
   POI_IMAGE          image for 'poi build'  (default: debian/12)
   POI_NODE_VERSION   node major version     (default: 20)
-  INCUS_SOCKET       incus unix socket      (default: /var/lib/incus/unix.socket)
+  INCUS_SOCKET       incus unix socket
+                     (auto-detected: Linux default, then Colima on macOS)
 `;
 
 async function ensurePiStateDir(): Promise<string> {
@@ -87,6 +89,23 @@ async function shell(piArgs: string[]): Promise<number> {
   return exitCode;
 }
 
+function reportIncusFailure(err: unknown): void {
+  const msg = err instanceof Error ? err.message : String(err);
+  const socket = process.env.INCUS_SOCKET ?? "(unresolved)";
+  const lines = [`poi: ${msg}`, "", `Incus socket: ${socket}`];
+  if (msg.includes("typo in the url or port") || msg.toLowerCase().includes("not found")) {
+    lines.push(
+      "",
+      "Likely causes:",
+      "  - Incus daemon isn't running",
+      "  - your user isn't in the incus-admin group",
+      "  - on macOS: Colima's incus profile isn't started (colima start --profile incus)",
+      "  - INCUS_SOCKET points at the wrong path",
+    );
+  }
+  process.stderr.write(`${lines.join("\n")}\n`);
+}
+
 async function main(): Promise<void> {
   const [cmd, ...rest] = process.argv.slice(2);
 
@@ -95,20 +114,29 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (cmd === "build") {
-    await build();
-    return;
-  }
+  // Everything past this point needs Incus. Resolve the socket once so
+  // every downstream IncusClient picks it up from env.
+  ensureIncusSocket();
 
-  if (cmd === "status") {
-    await status();
-    return;
-  }
+  try {
+    if (cmd === "build") {
+      await build();
+      return;
+    }
 
-  // Default or explicit `shell`. Everything after is piped to pi.
-  const piArgs = cmd === "shell" || cmd === undefined ? rest : [cmd, ...rest];
-  const exitCode = await shell(piArgs);
-  process.exit(exitCode);
+    if (cmd === "status") {
+      await status();
+      return;
+    }
+
+    // Default or explicit `shell`. Everything after is piped to pi.
+    const piArgs = cmd === "shell" || cmd === undefined ? rest : [cmd, ...rest];
+    const exitCode = await shell(piArgs);
+    process.exit(exitCode);
+  } catch (err) {
+    reportIncusFailure(err);
+    process.exit(1);
+  }
 }
 
 await main();
